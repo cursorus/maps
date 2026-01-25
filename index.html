@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Atmospheric Apple Map</title>
+    <script src="https://cdn.apple-mapkit.com/mk/5.x.x/mapkit.js"></script>
+    <style>
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+        #map { width: 100%; height: 100vh; }
+        
+        .controls {
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 15px;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(15px);
+            padding: 10px 20px;
+            border-radius: 50px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            z-index: 1000;
+        }
+
+        button {
+            background: rgba(255, 255, 255, 0.9);
+            border: none;
+            padding: 8px 18px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 14px;
+            transition: all 0.3s ease;
+            color: #000;
+        }
+
+        button:hover { background: #fff; transform: translateY(-2px); }
+        button:active { transform: translateY(0); }
+        button.active { background: #007AFF; color: #fff; }
+    </style>
+</head>
+<body>
+
+<div id="map"></div>
+
+<div class="controls">
+    <button id="toggle-traffic">Показать пробки</button>
+    <button id="toggle-theme">Сменить время (Ночь)</button>
+</div>
+
+<script>
+// ВАЖНО: Без валидного токена карта не отобразится. 
+// Его нужно сгенерировать в Apple Developer Program.
+const YOUR_MAPKIT_TOKEN = "INSERT_YOUR_TOKEN_HERE";
+
+mapkit.init({
+    authorizationCallback: function(done) {
+        done(YOUR_MAPKIT_TOKEN);
+    }
+});
+
+// Создаем карту
+const map = new mapkit.Map("map", {
+    center: new mapkit.Coordinate(55.751244, 37.618423), // Москва
+    span: new mapkit.CoordinateSpan(0.1, 0.1),
+    showsUserLocation: false,
+    colorScheme: mapkit.ColorScheme.Dark // Изначально ночная атмосфера
+});
+
+// Логика пробок
+const trafficBtn = document.getElementById('toggle-traffic');
+trafficBtn.addEventListener('click', () => {
+    if (map.showsTraffic) {
+        map.showsTraffic = false;
+        trafficBtn.classList.remove('active');
+        trafficBtn.innerText = "Показать пробки";
+    } else {
+        map.showsTraffic = true;
+        trafficBtn.classList.add('active');
+        trafficBtn.innerText = "Скрыть пробки";
+    }
+});
+
+// Логика смены темы (День/Ночь)
+const themeBtn = document.getElementById('toggle-theme');
+themeBtn.addEventListener('click', () => {
+    if (map.colorScheme === mapkit.ColorScheme.Dark) {
+        map.colorScheme = mapkit.ColorScheme.Light;
+        themeBtn.innerText = "Сменить время (День)";
+        themeBtn.classList.add('active');
+    } else {
+        map.colorScheme = mapkit.ColorScheme.Dark;
+        themeBtn.innerText = "Сменить время (Ночь)";
+        themeBtn.classList.remove('active');
+    }
+});
+</script>
+
+</body>
+</html>
