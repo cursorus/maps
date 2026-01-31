@@ -1,103 +1,100 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Atmospheric Apple Map</title>
-    <script src="https://cdn.apple-mapkit.com/mk/5.x.x/mapkit.js"></script>
+    <meta charset="utf-8">
+    <title>Карта с пробками и агрегацией данных</title>
+    <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
+    
+    <link href="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css" rel="stylesheet">
+    <script src="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js"></script>
+    
     <style>
-        body, html { margin: 0; padding: 0; width: 100%; height: 100%; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
-        #map { width: 100%; height: 100vh; }
-        
-        .controls {
+        body { margin: 0; padding: 0; font-family: sans-serif; }
+        #map { position: absolute; top: 0; bottom: 0; width: 100%; }
+        .info-panel {
             position: absolute;
-            bottom: 30px;
-            left: 50%;
-            transform: translateX(-50%);
-            display: flex;
-            gap: 15px;
-            background: rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(15px);
-            padding: 10px 20px;
-            border-radius: 50px;
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-            z-index: 1000;
+            top: 10px;
+            left: 10px;
+            z-index: 1;
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            max-width: 300px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            display: none;
         }
-
-        button {
-            background: rgba(255, 255, 255, 0.9);
-            border: none;
-            padding: 8px 18px;
-            border-radius: 20px;
-            cursor: pointer;
-            font-weight: 600;
-            font-size: 14px;
-            transition: all 0.3s ease;
-            color: #000;
-        }
-
-        button:hover { background: #fff; transform: translateY(-2px); }
-        button:active { transform: translateY(0); }
-        button.active { background: #007AFF; color: #fff; }
     </style>
 </head>
 <body>
 
 <div id="map"></div>
-
-<div class="controls">
-    <button id="toggle-traffic">Показать пробки</button>
-    <button id="toggle-theme">Сменить время (Ночь)</button>
+<div id="info-panel" class="info-panel">
+    <h3 id="place-name">Название места</h3>
+    <div id="place-content">
+        <p><strong>Google:</strong> ⭐ <span id="google-rating">-</span></p>
+        <p><strong>Yandex:</strong> ⭐ <span id="yandex-rating">-</span></p>
+        <div id="photos"></div>
+    </div>
 </div>
 
 <script>
-// ВАЖНО: Без валидного токена карта не отобразится. 
-// Его нужно сгенерировать в Apple Developer Program.
-const YOUR_MAPKIT_TOKEN = "INSERT_YOUR_TOKEN_HERE";
+    // ТВОЙ ТОКЕН MAPBOX
+    mapboxgl.accessToken = 'YOUR_MAPBOX_ACCESS_TOKEN';
 
-mapkit.init({
-    authorizationCallback: function(done) {
-        done(YOUR_MAPKIT_TOKEN);
-    }
-});
+    const map = new mapboxgl.Map({
+        container: 'map',
+        style: 'mapbox://styles/mapbox/streets-v12',
+        center: [37.6173, 55.7558], // Москва
+        zoom: 12
+    });
 
-// Создаем карту
-const map = new mapkit.Map("map", {
-    center: new mapkit.Coordinate(55.751244, 37.618423), // Москва
-    span: new mapkit.CoordinateSpan(0.1, 0.1),
-    showsUserLocation: false,
-    colorScheme: mapkit.ColorScheme.Dark // Изначально ночная атмосфера
-});
+    map.on('load', () => {
+        // Добавляем слой пробок Mapbox
+        map.addSource('mapbox-traffic', {
+            type: 'vector',
+            url: 'mapbox://mapbox.mapbox-traffic-v1'
+        });
 
-// Логика пробок
-const trafficBtn = document.getElementById('toggle-traffic');
-trafficBtn.addEventListener('click', () => {
-    if (map.showsTraffic) {
-        map.showsTraffic = false;
-        trafficBtn.classList.remove('active');
-        trafficBtn.innerText = "Показать пробки";
-    } else {
-        map.showsTraffic = true;
-        trafficBtn.classList.add('active');
-        trafficBtn.innerText = "Скрыть пробки";
-    }
-});
+        // Визуализация пробок
+        map.addLayer({
+            'id': 'traffic-layer',
+            'type': 'line',
+            'source': 'mapbox-traffic',
+            'source-layer': 'traffic',
+            'paint': {
+                'line-width': 2,
+                'line-color': [
+                    'match',
+                    ['get', 'congestion'],
+                    'low', '#4caf50',
+                    'moderate', '#ffeb3b',
+                    'heavy', '#f44336',
+                    'severe', '#8b0000',
+                    '#000000'
+                ]
+            }
+        });
 
-// Логика смены темы (День/Ночь)
-const themeBtn = document.getElementById('toggle-theme');
-themeBtn.addEventListener('click', () => {
-    if (map.colorScheme === mapkit.ColorScheme.Dark) {
-        map.colorScheme = mapkit.ColorScheme.Light;
-        themeBtn.innerText = "Сменить время (День)";
-        themeBtn.classList.add('active');
-    } else {
-        map.colorScheme = mapkit.ColorScheme.Dark;
-        themeBtn.innerText = "Сменить время (Ночь)";
-        themeBtn.classList.remove('active');
-    }
-});
+        console.log("Слой пробок загружен");
+    });
+
+    // Эмуляция клика по маркеру для получения данных из API
+    map.on('click', (e) => {
+        const panel = document.getElementById('info-panel');
+        panel.style.display = 'block';
+        
+        // В реальности здесь должны быть вызовы fetch() к твоему серверу,
+        // который дергает Google Places API и Yandex Search API.
+        document.getElementById('place-name').innerText = "Загрузка данных...";
+        
+        // Пример того, как это будет выглядеть после объединения:
+        setTimeout(() => {
+            document.getElementById('place-name').innerText = "Уютное Кафе";
+            document.getElementById('google-rating').innerText = "4.8 (120 отзывов)";
+            document.getElementById('yandex-rating').innerText = "4.7 (350 отзывов)";
+        }, 1000);
+    });
+
 </script>
-
 </body>
 </html>
